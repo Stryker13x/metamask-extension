@@ -24,10 +24,18 @@ import {
   TRANSACTION_CATEGORY_RECEIVE,
   UNAPPROVED_STATUS,
   FAILED_STATUS,
-  CANCELLED_STATUS,
 } from '../../../helpers/constants/transactions'
 import { useShouldShowSpeedUp } from '../../../hooks/useShouldShowSpeedUp'
 import Sign from '../../ui/icon/sign-icon.component'
+import TransactionStatus from '../transaction-status/transaction-status.component'
+
+const ICON_MAP = {
+  [TRANSACTION_CATEGORY_APPROVAL]: Approve,
+  [TRANSACTION_CATEGORY_INTERACTION]: Interaction,
+  [TRANSACTION_CATEGORY_SEND]: Send,
+  [TRANSACTION_CATEGORY_SIGNATURE_REQUEST]: Sign,
+  [TRANSACTION_CATEGORY_RECEIVE]: Receive,
+}
 
 
 export default function TransactionListItem ({ transactionGroup, isEarliestNonce = false }) {
@@ -36,7 +44,7 @@ export default function TransactionListItem ({ transactionGroup, isEarliestNonce
   const { hasCancelled } = transactionGroup
   const [showDetails, setShowDetails] = useState(false)
 
-  const { initialTransaction: { id } } = transactionGroup
+  const { initialTransaction: { id }, primaryTransaction } = transactionGroup
 
   const [cancelEnabled, cancelTransaction] = useCancelTransaction(transactionGroup)
   const retryTransaction = useRetryTransaction(transactionGroup)
@@ -55,48 +63,13 @@ export default function TransactionListItem ({ transactionGroup, isEarliestNonce
     senderAddress,
   } = useTransactionDisplayData(transactionGroup)
 
-  const isApprove = category === TRANSACTION_CATEGORY_APPROVAL
   const isSignatureReq = category === TRANSACTION_CATEGORY_SIGNATURE_REQUEST
-  const isInteraction = category === TRANSACTION_CATEGORY_INTERACTION
-  const isSend = category === TRANSACTION_CATEGORY_SEND
-  const isReceive = category === TRANSACTION_CATEGORY_RECEIVE
   const isUnapproved = status === UNAPPROVED_STATUS
   const isFailed = status === FAILED_STATUS
-  const isCancelled = status === CANCELLED_STATUS
 
   const color = isFailed ? '#D73A49' : '#2F80ED'
 
-  let Icon
-  if (isApprove) {
-    Icon = Approve
-  } else if (isSend) {
-    Icon = Send
-  } else if (isReceive) {
-    Icon = Receive
-  } else if (isInteraction) {
-    Icon = Interaction
-  } else if (isSignatureReq) {
-    Icon = Sign
-  }
-
-  let subtitleStatus = <span><span className="transaction-list-item__date">{date}</span> · </span>
-  if (isUnapproved) {
-    subtitleStatus = (
-      <span><span className="transaction-list-item__status--unapproved">{t('unapproved')}</span> · </span>
-    )
-  } else if (isFailed) {
-    subtitleStatus = (
-      <span><span className="transaction-list-item__status--failed">{t('failed')}</span> · </span>
-    )
-  } else if (isCancelled) {
-    subtitleStatus = (
-      <span><span className="transaction-list-item__status--cancelled">{t('cancelled')}</span> · </span>
-    )
-  } else if (isPending && !isEarliestNonce) {
-    subtitleStatus = (
-      <span><span className="transaction-list-item__status--queued">{t('queued')}</span> · </span>
-    )
-  }
+  const Icon = ICON_MAP[category]
 
   const className = classnames('transaction-list-item', { 'transaction-list-item--pending': isPending })
 
@@ -149,6 +122,9 @@ export default function TransactionListItem ({ transactionGroup, isEarliestNonce
     )
   }, [shouldShowSpeedUp, isPending, retryTransaction])
 
+  const statusTooltipText = primaryTransaction.err?.rpc?.message || primaryTransaction.err?.message
+  const statusKey = isPending && !isEarliestNonce ? 'queued' : status
+
   return (
     <>
       <ListItem
@@ -163,7 +139,7 @@ export default function TransactionListItem ({ transactionGroup, isEarliestNonce
         )}
         icon={<Icon color={color} size={28} />}
         subtitle={subtitle}
-        subtitleStatus={subtitleStatus}
+        subtitleStatus={<TransactionStatus date={date} statusKey={statusKey} tooltipText={statusTooltipText} />}
         rightContent={!isSignatureReq && (
           <>
             <h2 className="transaction-list-item__primary-currency">{primaryCurrency}</h2>
